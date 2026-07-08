@@ -1,4 +1,4 @@
-/*! PRO-V Weather Card v1.0.2
+/*! PRO-V Weather Card v1.0.3
  *  A Lovelace card styled after PRO-V / Ecowitt weather-station consoles:
  *  clock, moon phase, forecast, pressure, UV, solar, indoor/outdoor
  *  temperature & humidity, wind compass and rain — every reading is a
@@ -9,7 +9,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.2";
+  const VERSION = "1.0.3";
 
   // MDI weather icon paths (Material Design Icons, Apache 2.0)
   const WEATHER_ICONS = {
@@ -62,7 +62,7 @@
   const stylePalette = (mode, pair) => {
     if (mode === "manual" && pair) {
       return {
-        bg: `linear-gradient(145deg, ${pair[0]} 0%, ${pair[1]} 130%)`,
+        bg: `linear-gradient(160deg, ${pair[0]} 0%, ${pair[1]} 130%)`,
         text: "#fff",
         dim: "rgba(255,255,255,.72)",
         panel: "rgba(0,0,0,.28)",
