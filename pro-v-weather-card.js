@@ -1,4 +1,4 @@
-/*! PRO-V Weather Card v1.0.1
+/*! PRO-V Weather Card v1.0.2
  *  A Lovelace card styled after PRO-V / Ecowitt weather-station consoles:
  *  clock, moon phase, forecast, pressure, UV, solar, indoor/outdoor
  *  temperature & humidity, wind compass and rain — every reading is a
@@ -9,7 +9,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.1";
+  const VERSION = "1.0.2";
 
   // MDI weather icon paths (Material Design Icons, Apache 2.0)
   const WEATHER_ICONS = {
@@ -305,7 +305,7 @@
         v
           ? `<div class="reading">
               <span class="num">${v.txt}</span>
-              <span class="unit">${unitTop || v.unit}</span>
+              <span class="unit">${unitTop !== undefined && unitTop !== null ? unitTop : v.unit}</span>
               ${extraId ? this._trendArrow(extraId) : ""}
             </div>`
           : "";
@@ -320,7 +320,8 @@
       // forecast
       const wst = cfg.weather && hass.states[cfg.weather];
       const wIcon = wst && (WEATHER_ICONS[wst.state] || WEATHER_ICONS.cloudy);
-      const wLabel = wst ? wst.state.replace(/-/g, " ") : "";
+      const COND = { partlycloudy: "Partly cloudy", "clear-night": "Clear night", "lightning-rainy": "Lightning & rain", "snowy-rainy": "Snow & rain", "windy-variant": "Windy" };
+      const wLabel = wst ? (COND[wst.state] || wst.state.replace(/-/g, " ")) : "";
 
       const inT = this._val("indoor_temp");
       const inH = this._val("indoor_humidity", 0);
@@ -384,7 +385,7 @@
           border: 1px solid ${pal.panelLine};
         }
         .tag {
-          position: absolute; top: 8px; right: 10px;
+          display: block; text-align: right; margin: -2px 0 4px;
           font-size: .68em; letter-spacing: .08em; opacity: .75;
           text-transform: uppercase;
         }
