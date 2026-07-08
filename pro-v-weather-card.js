@@ -1,4 +1,4 @@
-/*! PRO-V Weather Card v1.1.0
+/*! PRO-V Weather Card v1.1.1
  *  A Lovelace card styled after PRO-V / Ecowitt weather-station consoles:
  *  clock, moon phase, forecast, pressure, UV, solar, indoor/outdoor
  *  temperature & humidity, wind compass and rain — every reading is a
@@ -9,7 +9,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.1.0";
+  const VERSION = "1.1.1";
 
   // MDI weather icon paths (Material Design Icons, Apache 2.0)
   const WEATHER_ICONS = {
@@ -165,12 +165,10 @@
         this._fcUnsub = this._hass.connection.subscribeMessage(
           (msg) => {
             this._forecast = (msg.forecast || []).slice(0, 5);
-            const strip = this.shadowRoot.querySelector("[data-fc-strip]");
-            if (strip) strip.innerHTML = this._fcStrip();
-            else {
-              this._renderedKey = null;
-              if (this._hass && this._config) this._render();
-            }
+            // Full re-render: the panel swaps between the fallback
+            // condition line and the strip depending on forecast presence.
+            this._renderedKey = null;
+            if (this._hass && this._config) this._render();
           },
           { type: "weather/subscribe_forecast", forecast_type: "daily", entity_id: ent }
         );
@@ -501,9 +499,10 @@
                 ? panel(
                     "",
                     "Forecast",
-                    `<div class="fc"><svg viewBox="0 0 24 24"><path d="${wIcon}"/></svg>
-                     <span class="cond">${wLabel}</span></div>
-                     <div class="fcstrip" data-fc-strip>${this._fcStrip()}</div>`
+                    this._forecast && this._forecast.length
+                      ? `<div class="fcstrip" data-fc-strip>${this._fcStrip()}</div>`
+                      : `<div class="fc"><svg viewBox="0 0 24 24"><path d="${wIcon}"/></svg>
+                         <span class="cond">${wLabel}</span></div>`
                   )
                 : ""
             }
