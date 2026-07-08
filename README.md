@@ -2,6 +2,13 @@
 
 A Lovelace card styled after PRO-V / Ecowitt weather-station consoles: clock and date, moon phase strip, forecast, pressure, UV index, solar radiation, indoor and outdoor temperature/humidity, a wind compass, and rain — laid out like the display on your wall.
 
+<p align="center">
+  <img src="images/style-default.png" width="32%" alt="Default - follows your HA theme">
+  <img src="images/style-theme.png" width="32%" alt="Theme - Gradient Blue applied to just this card">
+  <img src="images/style-manual.png" width="32%" alt="Manual - custom gradient colours">
+</p>
+<p align="center"><sub>Default &middot; Theme (Gradient Blue) &middot; Manual gradient</sub></p>
+
 **Every reading is a GUI-selectable entity.** Built for Ecowitt stations but source-agnostic: point the indoor temperature at any sensor, take the forecast from any `weather.*` entity, mix providers freely. Panels simply hide when their slot isn't configured.
 
 ## Features
