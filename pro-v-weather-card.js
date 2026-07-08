@@ -1,4 +1,4 @@
-/*! PRO-V Weather Card v1.0.3
+/*! PRO-V Weather Card v1.1.0
  *  A Lovelace card styled after PRO-V / Ecowitt weather-station consoles:
  *  clock, moon phase, forecast, pressure, UV, solar, indoor/outdoor
  *  temperature & humidity, wind compass and rain — every reading is a
@@ -9,7 +9,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.3";
+  const VERSION = "1.1.0";
 
   // MDI weather icon paths (Material Design Icons, Apache 2.0)
   const WEATHER_ICONS = {
@@ -144,6 +144,55 @@
       this._renderedKey = null;
       this._trend = {}; // entity -> {v, t, dir}
       this._appliedThemeVars = null;
+      this._forecast = null;
+      this._fcUnsub = null;
+      this._fcEntity = undefined;
+    }
+
+    // 5-day forecast via the modern HA forecast subscription (weather
+    // entities no longer expose a forecast attribute).
+    _manageForecastSub() {
+      const ent = this._config && this._config.weather;
+      if (ent === this._fcEntity) return;
+      if (this._fcUnsub) {
+        this._fcUnsub.then((u) => u()).catch(() => {});
+        this._fcUnsub = null;
+      }
+      this._fcEntity = ent;
+      this._forecast = null;
+      if (!ent || !this._hass || !this._hass.connection) return;
+      try {
+        this._fcUnsub = this._hass.connection.subscribeMessage(
+          (msg) => {
+            this._forecast = (msg.forecast || []).slice(0, 5);
+            const strip = this.shadowRoot.querySelector("[data-fc-strip]");
+            if (strip) strip.innerHTML = this._fcStrip();
+            else {
+              this._renderedKey = null;
+              if (this._hass && this._config) this._render();
+            }
+          },
+          { type: "weather/subscribe_forecast", forecast_type: "daily", entity_id: ent }
+        );
+      } catch (err) {
+        /* older HA cores without the subscription API */
+      }
+    }
+
+    _fcStrip() {
+      if (!this._forecast || !this._forecast.length) return "";
+      return this._forecast
+        .map((f) => {
+          const d = new Date(f.datetime).toLocaleDateString("en-AU", { weekday: "short" });
+          const icon = WEATHER_ICONS[f.condition] || WEATHER_ICONS.cloudy;
+          return `<div class="fcday">
+            <span class="fcd">${d}</span>
+            <svg viewBox="0 0 24 24"><path d="${icon}"/></svg>
+            <span class="fch">${fmt(f.temperature, 0)}&deg;</span>
+            <span class="fcl">${f.templow !== undefined ? fmt(f.templow, 0) + "&deg;" : ""}</span>
+          </div>`;
+        })
+        .join("");
     }
 
     static getConfigElement() {
@@ -189,6 +238,7 @@
         this._themeDark = dark;
         this._renderedKey = null;
       }
+      this._manageForecastSub();
       const ids = SLOTS.map(([k]) => this._config[k]).filter(Boolean);
       const key = ids
         .map((id) => {
@@ -205,9 +255,18 @@
 
     connectedCallback() {
       this._clockTimer = setInterval(() => this._tickClock(), 5000);
+      if (this._hass && this._config) {
+        this._fcEntity = undefined; // force resubscribe
+        this._manageForecastSub();
+      }
     }
     disconnectedCallback() {
       if (this._clockTimer) clearInterval(this._clockTimer);
+      if (this._fcUnsub) {
+        this._fcUnsub.then((u) => u()).catch(() => {});
+        this._fcUnsub = null;
+        this._fcEntity = undefined;
+      }
     }
 
     _applyTheme(name) {
@@ -313,9 +372,13 @@
       // clock
       const { time, ampm, day, date } = this._now();
 
-      // moon strip (8 phases, current highlighted)
+      // current moon phase: single glyph + name
+      const PHASE_NAMES = [
+        "New Moon", "Waxing Crescent", "First Quarter", "Waxing Gibbous",
+        "Full Moon", "Waning Gibbous", "Last Quarter", "Waning Crescent",
+      ];
       const phaseIdx = Math.round(moonPhase() * 8) % 8;
-      const moons = Array.from({ length: 8 }, (_, i) => moonGlyph(i, i === phaseIdx)).join("");
+      const moonHtml = `<div class="moonrow">${moonGlyph(phaseIdx, true)}<span class="phasename">${PHASE_NAMES[phaseIdx]}</span></div>`;
 
       // forecast
       const wst = cfg.weather && hass.states[cfg.weather];
@@ -399,10 +462,19 @@
         /* clock */
         .clock .t { font-size: 2.4em; font-weight: 300; letter-spacing: -0.5px; }
         .clock .ap { font-size: .75em; opacity: .75; margin-right: 8px; }
-        .clock .dd { font-size: .95em; opacity: .85; float: right; margin-top: 14px; }
-        .moonstrip { display: flex; gap: 4px; justify-content: space-between; margin-top: 8px; }
-        .moon { width: 20px; height: 20px; opacity: .4; }
-        .moon.on { opacity: 1; }
+        .clock .dd { font-size: .95em; opacity: .85; }
+        .clkright { text-align: right; }
+        .moonrow { display: flex; align-items: center; gap: 6px;
+          justify-content: flex-end; margin-top: 4px; }
+        .moon { width: 22px; height: 22px; }
+        .phasename { font-size: .72em; opacity: .8; }
+        .fcstrip { display: flex; justify-content: space-between; gap: 4px; margin-top: 10px; }
+        .fcstrip:empty { display: none; }
+        .fcday { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+        .fcday svg { width: 22px; height: 22px; fill: currentColor; }
+        .fcd { font-size: .72em; opacity: .8; }
+        .fch { font-size: .85em; font-weight: 500; }
+        .fcl { font-size: .72em; opacity: .7; }
         /* forecast */
         .fc { display: flex; align-items: center; gap: 10px; }
         .fc svg { width: 54px; height: 54px; fill: currentColor; flex: none; }
@@ -418,9 +490,10 @@
               "clock",
               "",
               `<div data-clock>
-                 <span class="ap">${ampm}</span><span class="t">${time}</span>
-                 <span class="dd">${day} ${date}</span>
-                 <div class="moonstrip">${moons}</div>
+                 <div class="duo">
+                   <div><span class="ap">${ampm}</span><span class="t">${time}</span></div>
+                   <div class="clkright"><span class="dd">${day} ${date}</span>${moonHtml}</div>
+                 </div>
                </div>`
             )}
             ${
@@ -429,21 +502,11 @@
                     "",
                     "Forecast",
                     `<div class="fc"><svg viewBox="0 0 24 24"><path d="${wIcon}"/></svg>
-                     <span class="cond">${wLabel}</span></div>`
+                     <span class="cond">${wLabel}</span></div>
+                     <div class="fcstrip" data-fc-strip>${this._fcStrip()}</div>`
                   )
                 : ""
             }
-            ${press ? panel("", "Pressure", big(press, null, press.id)) : ""}
-            <div class="row">
-              ${
-                uv
-                  ? panel("", "UVI", `${big(uv, "")}<span class="uvword">${uvWord}</span>`)
-                  : ""
-              }
-              ${solar ? panel("", "Light", big(solar)) : ""}
-            </div>
-          </div>
-          <div class="col">
             ${
               inT || inH
                 ? panel(
@@ -462,6 +525,17 @@
                   )
                 : ""
             }
+          </div>
+          <div class="col">
+            ${press ? panel("", "Pressure", big(press, null, press.id)) : ""}
+            <div class="row">
+              ${
+                uv
+                  ? panel("", "UVI", `${big(uv, "")}<span class="uvword">${uvWord}</span>`)
+                  : ""
+              }
+              ${solar ? panel("", "Light", big(solar)) : ""}
+            </div>
             <div class="row">
               ${wind ? panel("", "Wind", compass) : ""}
               ${
