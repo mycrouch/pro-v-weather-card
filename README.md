@@ -1,6 +1,6 @@
 # PRO-V Weather Card
 
-A Lovelace card styled after PRO-V / Ecowitt weather-station consoles: clock and date, moon phase strip, forecast, pressure, UV index, solar radiation, indoor and outdoor temperature/humidity, a wind compass, and rain — laid out like the display on your wall.
+A Lovelace card styled after PRO-V / Ecowitt weather-station consoles: clock and date, current moon phase, 5-day forecast, pressure, UV index, solar radiation, indoor and outdoor temperature/humidity, a wind compass, and rain — laid out like the display on your wall.
 
 <p align="center">
   <img src="images/style-default.png" width="32%" alt="Default - follows your HA theme">
@@ -13,7 +13,7 @@ A Lovelace card styled after PRO-V / Ecowitt weather-station consoles: clock and
 
 ## Features
 
-- **Console layout** — clock with day/date, computed moon-phase strip (no entity needed), forecast glyph from any weather entity, pressure, UVI with severity word (LOW → EXTREME), solar W/m², indoor and outdoor temp + humidity, wind compass with live bearing pointer and speed, rain with a configurable label (Event / Rate / Daily — whatever sensor you feed it).
+- **Console layout** — clock with day/date, computed current moon phase with name (no entity needed), 5-day forecast strip (day, condition, high/low) fed live by HA's forecast subscription from any weather entity, pressure, UVI with severity word (LOW → EXTREME), solar W/m², indoor and outdoor temp + humidity, wind compass with live bearing pointer and speed, rain with a configurable label (Event / Rate / Daily — whatever sensor you feed it).
 - **Trend arrows** — indoor/outdoor and pressure readings grow rise/fall arrows once the card has watched them for a while (20-minute windows, session-based).
 - **Fully GUI-configured** — style and every data slot in the visual editor; sensible auto-discovery for Ecowitt entity naming in the card picker preview.
 - **Three style modes** (same convention as the [AirTouch Card](https://github.com/mycrouch/airtouch-card) and [Ecovacs Vacuum Card](https://github.com/mycrouch/ecovacs-vacuum-card)): **Default** (follows your theme), **Theme** (apply any installed theme — e.g. [Gradient Themes](https://github.com/mycrouch/gradient-themes) — to just this card), or **Manual** gradient colours.
