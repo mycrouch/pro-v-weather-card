@@ -1,4 +1,4 @@
-/*! PRO-V Weather Card v1.0.0
+/*! PRO-V Weather Card v1.0.1
  *  A Lovelace card styled after PRO-V / Ecowitt weather-station consoles:
  *  clock, moon phase, forecast, pressure, UV, solar, indoor/outdoor
  *  temperature & humidity, wind compass and rain — every reading is a
@@ -9,7 +9,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.0.0";
+  const VERSION = "1.0.1";
 
   // MDI weather icon paths (Material Design Icons, Apache 2.0)
   const WEATHER_ICONS = {
@@ -364,7 +364,7 @@
               : ""
           }
           <text x="50" y="47" text-anchor="middle" font-size="9" fill="currentColor" fill-opacity=".7">${wind ? wind.unit : ""}</text>
-          <text x="50" y="62" text-anchor="middle" font-size="16" font-weight="700" fill="currentColor">${wind ? wind.txt : "--"}</text>
+          <text x="50" y="62" text-anchor="middle" font-size="16" font-weight="400" fill="currentColor">${wind ? wind.txt : "--"}</text>
         </svg>`;
 
       this.shadowRoot.innerHTML = `
@@ -391,12 +391,12 @@
         .row { display: flex; gap: 10px; }
         .row > .panel { flex: 1; }
         .reading { display: inline-flex; align-items: baseline; gap: 3px; }
-        .num { font-size: 2.1em; font-weight: 700; line-height: 1.1; }
+        .num { font-size: 2.3em; font-weight: 300; letter-spacing: -0.5px; line-height: 1.1; }
         .unit { font-size: .8em; opacity: .75; }
         .trend { font-size: .7em; opacity: .85; align-self: center; }
         .duo { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         /* clock */
-        .clock .t { font-size: 2.3em; font-weight: 700; }
+        .clock .t { font-size: 2.4em; font-weight: 300; letter-spacing: -0.5px; }
         .clock .ap { font-size: .75em; opacity: .75; margin-right: 8px; }
         .clock .dd { font-size: .95em; opacity: .85; float: right; margin-top: 14px; }
         .moonstrip { display: flex; gap: 4px; justify-content: space-between; margin-top: 8px; }
