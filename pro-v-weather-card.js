@@ -1,4 +1,4 @@
-/*! PRO-V Weather Card v1.1.1
+/*! PRO-V Weather Card v1.2.0
  *  A Lovelace card styled after PRO-V / Ecowitt weather-station consoles:
  *  clock, moon phase, forecast, pressure, UV, solar, indoor/outdoor
  *  temperature & humidity, wind compass and rain — every reading is a
@@ -9,7 +9,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "1.1.1";
+  const VERSION = "1.2.0";
 
   // MDI weather icon paths (Material Design Icons, Apache 2.0)
   const WEATHER_ICONS = {
@@ -553,6 +553,138 @@
     }
   }
 
+
+// ---------------------------------------------------------------------
+// Theme picker with gradient swatches: shows a small sample chip for each
+// installed theme (from its ha-card-background / card-gradient variable).
+// ---------------------------------------------------------------------
+class ProVThemePicker extends HTMLElement {
+  constructor() {
+    super();
+    this._open = false;
+    this._value = '';
+    this._hass = null;
+    this._themesRef = null;
+    this._outside = (e) => {
+      if (!e.composedPath().includes(this)) this._toggle(false);
+    };
+  }
+
+  set hass(h) {
+    this._hass = h;
+    if (h && h.themes !== this._themesRef) {
+      this._themesRef = h.themes;
+      this._render();
+    }
+  }
+
+  set value(v) {
+    if ((v || '') === this._value) return;
+    this._value = v || '';
+    this._render();
+  }
+  get value() {
+    return this._value;
+  }
+
+  disconnectedCallback() {
+    document.removeEventListener('click', this._outside, true);
+  }
+
+  _grad(name) {
+    const t =
+      this._hass && this._hass.themes && this._hass.themes.themes
+        ? this._hass.themes.themes[name]
+        : null;
+    if (!t) return null;
+    const pick = (o) =>
+      o && (o['card-gradient'] || o['ha-card-background'] || o['card-background-color']);
+    const g =
+      pick(t) || pick(t.modes && t.modes.light) || pick(t.modes && t.modes.dark);
+    if (
+      typeof g === 'string' &&
+      (g.startsWith('linear-gradient') || g.startsWith('#') || g.startsWith('rgb'))
+    )
+      return g;
+    return null;
+  }
+
+  _toggle(open) {
+    if (open === this._open) return;
+    this._open = open;
+    if (open) document.addEventListener('click', this._outside, true);
+    else document.removeEventListener('click', this._outside, true);
+    this._render();
+  }
+
+  _render() {
+    const names =
+      this._hass && this._hass.themes && this._hass.themes.themes
+        ? Object.keys(this._hass.themes.themes).sort()
+        : [];
+    const chip = (g) =>
+      `<span class="tp-chip" style="background:${g || 'var(--divider-color,#ccc)'}"></span>`;
+    this.innerHTML = `
+      <style>
+        .tp-wrap { position: relative; display: block; margin-top: 12px; }
+        .tp-field { display: flex; align-items: center; gap: 10px;
+          border: 1px solid var(--divider-color, #ccc); border-radius: 8px;
+          padding: 12px; cursor: pointer;
+          background: var(--mdc-text-field-fill-color, var(--secondary-background-color, #f5f5f5)); }
+        .tp-lbl { font-size: .75em; color: var(--secondary-text-color); }
+        .tp-chip { width: 30px; height: 18px; border-radius: 4px; flex: none;
+          border: 1px solid rgba(127,127,127,.35); }
+        .tp-name { flex: 1; color: var(--primary-text-color); }
+        .tp-caret { opacity: .6; }
+        .tp-list { position: absolute; z-index: 12; left: 0; right: 0; top: calc(100% + 2px);
+          max-height: 280px; overflow: auto;
+          background: var(--card-background-color, #fff);
+          border: 1px solid var(--divider-color, #ccc); border-radius: 8px;
+          box-shadow: 0 4px 16px rgba(0,0,0,.25); }
+        .tp-opt { display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+          cursor: pointer; color: var(--primary-text-color); }
+        .tp-opt:hover { background: rgba(127,127,127,.12); }
+        .tp-opt.sel { background: rgba(127,127,127,.2); }
+      </style>
+      <div class="tp-wrap">
+        <div class="tp-field" role="button" aria-haspopup="listbox">
+          ${chip(this._grad(this._value))}
+          <span class="tp-name">${this._value || 'Select a theme'}<br><span class="tp-lbl">Theme</span></span>
+          <span class="tp-caret">&#9662;</span>
+        </div>
+        ${
+          this._open
+            ? `<div class="tp-list" role="listbox">${names
+                .map(
+                  (n) =>
+                    `<div class="tp-opt ${n === this._value ? 'sel' : ''}" data-n="${n}">${chip(this._grad(n))}<span>${n}</span></div>`
+                )
+                .join('')}</div>`
+            : ''
+        }
+      </div>`;
+    this.querySelector('.tp-field').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._toggle(!this._open);
+    });
+    this.querySelectorAll('.tp-opt').forEach((o) =>
+      o.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._value = o.dataset.n;
+        this._toggle(false);
+        this._render();
+        this.dispatchEvent(
+          new CustomEvent('value-changed', {
+            detail: { value: this._value },
+            bubbles: true,
+            composed: true,
+          })
+        );
+      })
+    );
+  }
+}
+
   /* ------------------------------------------------------------------ *
    *  GUI editor                                                        *
    * ------------------------------------------------------------------ */
@@ -567,6 +699,7 @@
     set hass(hass) {
       this._hass = hass;
       if (this._form) this._form.hass = hass;
+      if (this._picker) this._picker.hass = hass;
     }
 
     setConfig(config) {
@@ -593,8 +726,10 @@
       };
       for (const [k] of SLOTS) if (v[k]) config[k] = v[k];
       if (v.rain_label) config.rain_label = v.rain_label;
-      if (v.mode === "theme" && v.theme) config.theme = v.theme;
-      else if (v.mode === "manual" && v.gradient_from && v.gradient_to)
+      if (v.mode === "theme") {
+        const th = v.theme || (this._config && this._config.theme);
+        if (th) config.theme = th;
+      } else if (v.mode === "manual" && v.gradient_from && v.gradient_to)
         config.gradient = [v.gradient_from, v.gradient_to];
       return config;
     }
@@ -612,12 +747,37 @@
           const config = this._build(v);
           this._config = config;
           this._emit(config);
-          if (modeChanged) this._schema(v);
+          if (modeChanged) {
+            this._schema(v);
+            this._syncPicker();
+          }
         });
         this.appendChild(this._form);
       }
       this._schema();
       if (this._hass) this._form.hass = this._hass;
+      this._syncPicker();
+    }
+
+    _syncPicker() {
+      if (this._mode === "theme") {
+        if (!this._picker) {
+          this._picker = document.createElement("pro-v-theme-picker");
+          this._picker.addEventListener("value-changed", (ev) => {
+            ev.stopPropagation();
+            const config = { ...this._config, theme: ev.detail.value };
+            delete config.gradient;
+            this._config = config;
+            this._emit(config);
+          });
+          this.appendChild(this._picker);
+        }
+        if (this._hass) this._picker.hass = this._hass;
+        this._picker.value = this._config.theme || "";
+      } else if (this._picker) {
+        this._picker.remove();
+        this._picker = null;
+      }
     }
 
     _schema(current) {
@@ -637,22 +797,6 @@
           },
         },
       ];
-      if (this._mode === "theme") {
-        const names =
-          this._hass && this._hass.themes && this._hass.themes.themes
-            ? Object.keys(this._hass.themes.themes).sort()
-            : [];
-        schema.push({
-          name: "theme",
-          label: "Theme",
-          selector: {
-            select: {
-              mode: "dropdown",
-              options: names.map((t) => ({ value: t, label: t })),
-            },
-          },
-        });
-      }
       if (this._mode === "manual") {
         schema.push(
           { name: "gradient_from", label: "From colour (e.g. #0d2b45)", selector: { text: {} } },
@@ -690,6 +834,7 @@
 
   customElements.define("pro-v-weather-card", ProVWeatherCard);
   customElements.define("pro-v-weather-card-editor", ProVWeatherCardEditor);
+  customElements.define("pro-v-theme-picker", ProVThemePicker);
 
   window.customCards = window.customCards || [];
   window.customCards.push({
